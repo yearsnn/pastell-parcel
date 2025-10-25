@@ -80,8 +80,8 @@ const LABELS = ["y2k", "gorp", "ballet", "grunge"];
 
 // 추론 파라미터
 const INFER_INTERVAL_MS    = 120;  // 추론 주기(ms)
-const CONFIDENCE_THRESHOLD = 0.80; // 임계치
-const SHOW_MS              = 1000; // 배지 표시 시간
+const CONFIDENCE_THRESHOLD = 0.90; // 임계치
+const SHOW_MS              = 1200; // 배지 표시 시간
 const COOLDOWN_MS          = 1400; // 같은 라벨 연속 노출 쿨다운
 const INFER_SIZE           = 224;  // TM 기본 입력 크기
 let tmModel = null;
