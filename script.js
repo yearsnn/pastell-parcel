@@ -72,18 +72,20 @@ function getEdgeBirthIntensity(row, N) {
 /* =========================
    Teachable Machine 설정
    ========================= */
-// 네가 /tm-outfit/ 에 모델 3종(model.json, metadata.json, weights.bin) 넣었다고 했으니:
 const MODEL_URL = "./tm-outfit/"; // 끝에 / 유지
-
-// 라벨(모델의 클래스명과 정확히 일치해야 함)
 const LABELS = ["y2k", "gorp", "ballet", "grunge"];
 
-// 추론 파라미터
-const INFER_INTERVAL_MS    = 120;  // 추론 주기(ms)
-const CONFIDENCE_THRESHOLD = 0.90; // 임계치
-const SHOW_MS              = 1200; // 배지 표시 시간
-const COOLDOWN_MS          = 1400; // 같은 라벨 연속 노출 쿨다운
-const INFER_SIZE           = 224;  // TM 기본 입력 크기
+// ▼ 요구사항 반영: 90% 이상이 2초 지속될 때만 표시
+const INFER_INTERVAL_MS    = 120;
+const CONFIDENCE_THRESHOLD = 0.90;  // 90%
+const STABLE_MS            = 2000;  // 2초 연속 유지 시 발동
+// 오브젝트가 “사라졌다”고 판단하는 기준(락 해제용)
+const LOW_CONF_TO_CLEAR    = 0.30;  // 이 값보다 낮은 확률이
+const CLEAR_MS             = 800;   // 0.8초 지속되면 lock 해제
+// 표시 시간(페이드 인/아웃은 CSS transition이 처리)
+const SHOW_MS              = 1500;
+
+const INFER_SIZE           = 224;   // TM 기본 입력 크기
 let tmModel = null;
 
 /* =========================
@@ -182,26 +184,47 @@ let tmModel = null;
     if (framesFilled < BUF_LEN) framesFilled++;
   }
 
-  // ===== 감지 배지 표시 =====
+  // ===== 감지 배지 표시 (겹침 방지: 한 번에 하나만) =====
   const badgeEls = {
     y2k:    document.getElementById('badge-y2k'),
     gorp:   document.getElementById('badge-gorp'),
     ballet: document.getElementById('badge-ballet'),
     grunge: document.getElementById('badge-grunge')
   };
-  const lastShownAt = { y2k: 0, gorp: 0, ballet: 0, grunge: 0 };
-  const hideTimers  = { y2k: null, gorp: null, ballet: null, grunge: null };
+  function showOnly(label) {
+    Object.entries(badgeEls).forEach(([k, el]) => {
+      if (!el) return;
+      if (k === label) el.classList.add('show');
+      else el.classList.remove('show');
+    });
+  }
+  function hideAll() {
+    Object.values(badgeEls).forEach(el => el && el.classList.remove('show'));
+  }
 
-  function showBadge(label) {
-    const el = badgeEls[label];
-    if (!el) return;
-    const now = performance.now();
-    if (now - lastShownAt[label] < COOLDOWN_MS) return; // 쿨다운
-    lastShownAt[label] = now;
+  // ===== 안정 인식 + 1회 표시 + lock 상태 머신 =====
+  const detectState = {
+    candidateLabel: null,
+    candidateSince: 0,
+    activeLabel: null,  // 최근에 표시했던 라벨
+    showing: false,
+    lock: false,        // 사라졌다고 판단되기 전까지 재발동 금지
+    clearSince: 0
+  };
 
-    el.classList.add('show');
-    if (hideTimers[label]) clearTimeout(hideTimers[label]);
-    hideTimers[label] = setTimeout(() => el.classList.remove('show'), SHOW_MS);
+  function triggerOnce(label) {
+    detectState.activeLabel = label;
+    detectState.showing = true;
+    detectState.lock = true;
+    detectState.clearSince = 0;
+
+    showOnly(label); // 보여주기
+    // SHOW_MS 뒤에 페이드아웃(클래스 제거)
+    setTimeout(() => {
+      hideAll();
+      detectState.showing = false;
+      // lock은 바로 풀지 않고, “사라짐(CLEAR)” 판정시 해제
+    }, SHOW_MS);
   }
 
   // ===== TM 추론 루프 =====
@@ -229,13 +252,47 @@ let tmModel = null;
     inferCtx.restore();
 
     const predictions = await tmModel.predict(inferCanvas);
-    let best = { className: "", probability: 0 };
-    for (const p of predictions) {
-      if (p.probability > best.probability) best = p;
+
+    // --- LOCK 중엔 “사라짐”을 감시 ---
+    if (detectState.lock) {
+      const active = detectState.activeLabel;
+      const activeProb = predictions.find(p => p.className === active)?.probability ?? 0;
+      if (activeProb < LOW_CONF_TO_CLEAR) {
+        if (!detectState.clearSince) detectState.clearSince = now;
+        else if (now - detectState.clearSince >= CLEAR_MS) {
+          // 충분히 사라짐 → 재무장
+          detectState.lock = false;
+          detectState.candidateLabel = null;
+          detectState.candidateSince = 0;
+          detectState.clearSince = 0;
+        }
+      } else {
+        // 다시 높아지면 클리어 타이머 리셋
+        detectState.clearSince = 0;
+      }
+      return; // lock 동안 새 트리거 금지
     }
 
+    // --- 현재 최고 라벨 찾기 ---
+    let best = { className: "", probability: 0 };
+    for (const p of predictions) if (p.probability > best.probability) best = p;
+
+    // --- 안정 인식(동일 라벨 90%↑가 2초 지속) ---
     if (LABELS.includes(best.className) && best.probability >= CONFIDENCE_THRESHOLD) {
-      showBadge(best.className);
+      if (detectState.candidateLabel !== best.className) {
+        // 후보 라벨 변경 → 새로 측정 시작
+        detectState.candidateLabel = best.className;
+        detectState.candidateSince = now;
+      } else {
+        // 같은 후보 라벨이 연속 유지되는 중
+        if (now - detectState.candidateSince >= STABLE_MS && !detectState.showing) {
+          triggerOnce(best.className); // 1회만 표출
+        }
+      }
+    } else {
+      // 임계치 미만 → 후보 초기화
+      detectState.candidateLabel = null;
+      detectState.candidateSince = 0;
     }
   }
 
