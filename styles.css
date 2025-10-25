@@ -86,7 +86,7 @@ body {
   position: absolute;
   left: 50%;
   top: 18%;
-  transform: translateX(-50%) scale(0.985); /* 살짝 축소로 시작 */
+  transform: translateX(-50%) scale(0.985);
   width: min(40%, 520px);
   max-width: 80%;
   object-fit: contain;
@@ -94,11 +94,9 @@ body {
   z-index: 20;
 
   opacity: 0;
-  /* 서서히 나타났다 사라지게: opacity+scale 동시 트랜지션 */
   transition: opacity 700ms ease, transform 700ms ease;
   will-change: opacity, transform;
 }
 .badge.show {
   opacity: 1;
-  transform: translateX(-50%) scale(1); /* 자연스러운 팝인 느낌 */
-}
+  transform: translateX(-50%) scale(1);
