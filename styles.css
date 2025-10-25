@@ -1,0 +1,99 @@
+:root {
+  color-scheme: light dark;
+  --page-bg: #000;
+  --stage-bg: #000;
+}
+
+/* 배경만 지정. 크기/중앙은 JS가 담당 */
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--page-bg);
+  overflow: hidden;
+  padding: max(env(safe-area-inset-top), 0)
+           max(env(safe-area-inset-right), 0)
+           max(env(safe-area-inset-bottom), 0)
+           max(env(safe-area-inset-left), 0);
+}
+
+/* 스테이지: 크기/위치/transform은 JS에서 설정 */
+.stage {
+  position: fixed;    /* 뷰포트 기준 */
+  background: var(--stage-bg);
+  overflow: hidden;
+}
+
+/* 입력 비디오: 화면엔 숨김 (캔버스로 렌더) */
+#cam {
+  position: absolute;
+  inset: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+/* 출력 캔버스: 스테이지 꽉 채우기 (실제 픽셀은 JS에서 DPR 반영) */
+#view {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 기존 오버레이 이미지들 */
+#textImage {
+  position: absolute;
+  height: 85%;
+  right: 0.5%;
+  top: 50%;
+  transform: translateY(-50%);
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 10;
+}
+#subtextImage1 {
+  position: absolute;
+  height: 40%;
+  right: 40%;
+  top: 2%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 10;
+}
+#subtextImage2 {
+  position: absolute;
+  height: 40%;
+  right: 41.8%;
+  top: 32%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 10;
+}
+#logoImage {
+  position: absolute;
+  height: 20%;
+  right: 45%;
+  transform: translateX(50%);
+  bottom: -2.5%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* 감지 배지: 기본 숨김, show 클래스일 때 페이드 인 */
+.badge {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  width: min(40%, 520px);
+  max-width: 80%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 20;
+
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.badge.show { opacity: 1; }

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Webcam 16:9 + Outfit Detection</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 16:9 스테이지 (크기/위치: JS가 계산) -->
+  <main class="stage" aria-label="16:9 고정 비율 스테이지">
+    <!-- 입력 비디오(표시는 숨기고, 캔버스로 렌더) -->
+    <video id="cam" muted autoplay playsinline></video>
+
+    <!-- 출력 캔버스 (웹캠 + 이펙트) -->
+    <canvas id="view"></canvas>
+
+    <!-- 기존 오버레이 이미지 (필요시 경로 수정) -->
+    <img id="textImage"     src="texttt.png" alt="텍스트 이미지" />
+    <img id="subtextImage1" src="sub1.png"   alt="서브 텍스트 1" />
+    <img id="subtextImage2" src="sub2.png"   alt="서브 텍스트 2" />
+    <img id="logoImage"     src="logo.png"   alt="로고 이미지" />
+
+    <!-- 감지 배지(4종) : 기본은 숨김 상태 -->
+    <img id="badge-y2k"    class="badge" src="y2k.png"    alt="y2k" />
+    <img id="badge-gorp"   class="badge" src="gorp.png"   alt="gorp" />
+    <img id="badge-ballet" class="badge" src="ballet.png" alt="ballet" />
+    <img id="badge-grunge" class="badge" src="grunge.png" alt="grunge" />
+  </main>
+
+  <!-- TensorFlow.js + Teachable Machine(Image) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.4/dist/teachablemachine-image.min.js"></script>
+
+  <script src="script.js"></script>
+</body>
+</html>
