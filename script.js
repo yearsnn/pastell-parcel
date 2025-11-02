@@ -99,7 +99,7 @@ function drawCameraCoverRot90(ctx, src, W, H) {
 }
 
 /*************************************************
- * ⭐ 배지 트레일(배지이름_t.png 연달아 나타나기) 설정/유틸
+ * ⭐ 배지 트레일(배지이름_t.png 연달아 나타나기)
  *************************************************/
 // 트레일 파일 이름: `${label}${TRAIL_IMG_SUFFIX}` → 예) y2k_t.png
 const TRAIL_IMG_SUFFIX   = "_t.png";
@@ -108,12 +108,69 @@ const TRAIL_INTERVAL_MS  = 120;
 // 한 번 트리거 동안 최대 생성 개수(안전 상한)
 const TRAIL_MAX_COUNT    = Math.ceil(SHOW_MS / TRAIL_INTERVAL_MS) + 2;
 
+// label -> 실제 배지 <img> src 경로 얻기
+function getBadgeSrcByLabel(label, badgeEls) {
+  const el = badgeEls[label];
+  if (!el) return null;
+  return el.getAttribute('src') || null;
+}
+
+// "xxx.png" → "xxx_t.png" (확장자 유지)
+// 확장자가 없으면 그냥 `_t.png` 추가
+function makeTrailSrcFromBase(baseSrc) {
+  if (!baseSrc) return null;
+  const m = baseSrc.match(/^(.*?)(\.[a-zA-Z0-9]+)$/);
+  if (m) return `${m[1]}_t${m[2]}`;
+  return `${baseSrc}_t.png`;
+}
+
+// 한 장의 트레일 이미지를 DOM에 추가(로드 실패 시 폴백)
+function addOneTrailImage(stage, src, label) {
+  const img = new Image();
+  img.className = 'badge-trail';
+  img.alt = `${label} trail`;
+
+  // 에러 시 폴백(원본 배지 이미지로라도 보이게)
+  img.onerror = () => {
+    console.warn(`[trail] 이미지 로드 실패: ${src}`);
+    // 폴백은 main badge src (경로 동일) 사용
+    const fallback = document.getElementById(`badge-${label}`)?.getAttribute('src');
+    if (fallback) {
+      img.src = fallback;
+    } else {
+      // 폴백도 없으면 포기
+      img.remove();
+    }
+  };
+
+  img.src = src;
+
+  // 살짝 랜덤 위치 흔들림(과하지 않게)
+  const jitter = 6; // px
+  const dx = (Math.random() * 2 - 1) * jitter;
+  const dy = (Math.random() * 2 - 1) * jitter;
+  // CSS 기본 transform 뒤에 추가 translate만 더해준다
+  img.style.transform = `translateY(-50%) rotate(90deg) translate(${dx}px, ${dy}px) scale(0.9)`;
+
+  // 애니메이션 종료 시 DOM 제거
+  img.addEventListener('animationend', () => img.remove(), { once: true });
+
+  stage.appendChild(img);
+}
+
 // 배지 트레일 생성기: SHOW_MS 동안 주기적으로 label_t.png를 뿌렸다가 CSS 애니메이션 후 제거
-function spawnBadgeTrail(label) {
+function spawnBadgeTrail(label, badgeEls) {
   const stage = document.querySelector('.stage');
   if (!stage) return;
 
-  const src = `${label}${TRAIL_IMG_SUFFIX}`;
+  // 실제 배지 src에서 트레일 src 도출 (경로 안전)
+  const baseSrc = getBadgeSrcByLabel(label, badgeEls);
+  if (!baseSrc) {
+    console.warn(`[trail] 배지 src를 찾지 못함: label=${label}`);
+    return;
+  }
+  const trailSrc = makeTrailSrcFromBase(baseSrc);
+
   const start = performance.now();
   let count = 0;
 
@@ -123,23 +180,7 @@ function spawnBadgeTrail(label) {
       clearInterval(timer);
       return;
     }
-
-    const img = new Image();
-    img.className = 'badge-trail';
-    img.src = src;
-    img.alt = `${label} trail`;
-
-    // 살짝 랜덤 위치 흔들림(과하지 않게)
-    const jitter = 6; // px
-    const dx = (Math.random() * 2 - 1) * jitter;
-    const dy = (Math.random() * 2 - 1) * jitter;
-    // CSS 기본 transform 뒤에 추가 translate만 더해준다
-    img.style.transform = `translateY(-50%) rotate(90deg) translate(${dx}px, ${dy}px) scale(0.9)`;
-
-    // 애니메이션 종료 시 DOM 제거
-    img.addEventListener('animationend', () => img.remove(), { once: true });
-
-    stage.appendChild(img);
+    addOneTrailImage(stage, trailSrc, label);
     count++;
   }, TRAIL_INTERVAL_MS);
 }
@@ -246,13 +287,13 @@ function spawnBadgeTrail(label) {
     detectState.activeLabel = label; detectState.showing = true; detectState.lock = true; detectState.clearSince = 0;
 
     showOnly(label);
-    // 트레일 시작 (y2k → y2k_t.png ...)
-    spawnBadgeTrail(label);
+    // 트레일 시작 (경로 자동 파생: y2k.png → y2k_t.png)
+    spawnBadgeTrail(label, badgeEls);
 
     setTimeout(()=>{ hideAll(); detectState.showing = false; }, SHOW_MS);
   }
 
-  // TM 추론(원본 비디오 기준 — 필요 시 여기도 미러/회전 맞출 수 있음)
+  // TM 추론(원본 비디오 기준)
   let lastInfer = 0;
   async function maybeInfer() {
     if (!tmModel) return;
