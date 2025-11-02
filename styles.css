@@ -101,7 +101,7 @@ body {
 }
 
 .badge-layer {
-  position: fixed;  /* ✅ stage를 기준으로 꽉 채운 레이어 */
+  position: absolute; /* ✅ stage를 기준으로 꽉 채운 레이어 */
   inset: 0;
   pointer-events: none;
   z-index: 18;         /* .badge(20)보다 아래면 그대로, 필요시 조절 */
@@ -109,19 +109,18 @@ body {
 
 /* === 배지 트레일 === */
 .badge-trail {
-  position: absolute;
-  left: 20%;
+  left: 20%;            /* ✅ 여기만 원하는 퍼센트로 조절 */
   top: 50%;
   width: 12%;
   object-fit: contain;
   pointer-events: none;
-  z-index: 18; /* 메인 배지(20)보다 살짝 아래 */
+  z-index: 18;
   opacity: 0;
-  transform: translateY(-50%) rotate(90deg) scale(0.9);
+  transform: translateY(-50%) rotate(90deg) scale(0.9); /* X이동 없음 */
   animation: trailFade 3000ms ease-out forwards;
 }
 
-/* 트레일이 살짝 커졌다가 사라지는 애니메이션 */
+짝 커졌다가 사라지는 애니메이션 */
 @keyframes trailFade {
   0%   { opacity: 0; transform: translateY(-50%) rotate(90deg) scale(0.86); }
   70%  { opacity: 0.9; transform: translateY(-50%) rotate(90deg) scale(1.0); }
