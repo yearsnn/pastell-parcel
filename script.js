@@ -1,3 +1,6 @@
+/* =========================
+   16:9 스테이지 사이징
+   ========================= */
 function updateStageSize() {
   const stage = document.querySelector('.stage');
   const aspect = 16 / 9;
@@ -26,9 +29,9 @@ function updateStageSize() {
    ========================= */
 const STRIP_RATIOS = [0.10, 0.20, 0.40, 0.20, 0.10];
 
-const MAX_DELAY_MS   = 1000; // 전체 지연 축소
+const MAX_DELAY_MS   = 1000; // 전체 지연
 const MAX_BUFFER_SEC = 5;
-const DELAY_CURVE    = 2; // 지연 곡선(아래쪽에만 약간 더)
+const DELAY_CURVE    = 2; // 지연 곡선
 
 const GHOST_SAMPLES = 5;
 const GHOST_SPAN    = 0.45;
@@ -72,17 +75,17 @@ function getEdgeBirthIntensity(row, N) {
 const MODEL_URL = "./tm-outfit/"; // 끝에 / 유지
 const LABELS = ["y2k", "gorp", "ballet", "grunge"];
 
-// ▼ 요구사항 반영: 90% 이상이 2초 지속될 때만 표시
+// 90% 이상이 2초 지속될 때만 표시
 const INFER_INTERVAL_MS    = 120;
-const CONFIDENCE_THRESHOLD = 0.90;  // 90%
-const STABLE_MS            = 2000;  // 2초 연속 유지 시 발동
-// 오브젝트가 “사라졌다”고 판단하는 기준(락 해제용)
-const LOW_CONF_TO_CLEAR    = 0.30;  // 이 값보다 낮은 확률이
-const CLEAR_MS             = 800;   // 0.8초 지속되면 lock 해제
+const CONFIDENCE_THRESHOLD = 0.90;
+const STABLE_MS            = 2000;
+// 오브젝트 “사라짐” 판정(락 해제용)
+const LOW_CONF_TO_CLEAR    = 0.30;
+const CLEAR_MS             = 800;
 // 표시 시간(페이드 인/아웃은 CSS transition이 처리)
 const SHOW_MS              = 1500;
 
-const INFER_SIZE           = 224;   // TM 기본 입력 크기
+const INFER_SIZE = 224;
 let tmModel = null;
 
 /* =========================
@@ -126,7 +129,7 @@ let tmModel = null;
     }
   }
 
-  // TM 모델 로드
+  // TM 모델 로드 (모델 없어도 이펙트는 동작)
   try {
     tmModel = await tmImage.load(
       MODEL_URL + "model.json",
@@ -135,7 +138,6 @@ let tmModel = null;
   } catch (e) {
     console.error("Teachable Machine 모델 로드 실패:", e);
     alert("모델 로드 실패: /tm-outfit/ 경로와 파일들을 확인하세요.");
-    // 모델 없어도 웹캠/이펙트는 동작하게 계속 진행
   }
 
   // 추론용 오프스크린 캔버스 (좌우 반전 후 전달)
@@ -165,18 +167,34 @@ let tmModel = null;
 
   const buffer = new Array(BUF_LEN).fill(null).map(() => {
     const c = document.createElement('canvas');
-    c.width = 1920; c.height = 1080; // 초기값
+    // 회전 적용 후 소스 크기(폭/높이)는 영상의 세로/가로와 동일
+    c.width  = 1080; // 초기값(회전 후 폭)
+    c.height = 1920; // 초기값(회전 후 높이)
     return c;
   });
   const bctx = buffer.map(c => c.getContext('2d', { alpha: false }));
   let head = 0, framesFilled = 0;
 
+  // 🔄 카메라 프레임을 버퍼에 적재할 때 "시계 방향 90° 회전" 적용
   function pushFrame() {
-    const vw = video.videoWidth  || 1920;
-    const vh = video.videoHeight || 1080;
+    const vw = video.videoWidth  || 1920; // 원본 영상 폭
+    const vh = video.videoHeight || 1080; // 원본 영상 높이
+
+    const rotW = vh; // 회전 후 폭
+    const rotH = vw; // 회전 후 높이
+
     const c = buffer[head], b = bctx[head];
-    if (c.width !== vw || c.height !== vh) { c.width = vw; c.height = vh; }
+    if (c.width !== rotW || c.height !== rotH) { c.width = rotW; c.height = rotH; }
+
+    b.save();
+    b.clearRect(0, 0, rotW, rotH);
+    // 캔버스 좌표계를 회전: (rotW, 0)로 평행이동 이후 90° 회전
+    b.translate(rotW, 0);
+    b.rotate(Math.PI / 2);
+    // 회전된 좌표계에서 원본 영상을 그대로 그리면 결과가 시계 방향 90°
     b.drawImage(video, 0, 0, vw, vh);
+    b.restore();
+
     head = (head + 1) % BUF_LEN;
     if (framesFilled < BUF_LEN) framesFilled++;
   }
@@ -203,9 +221,9 @@ let tmModel = null;
   const detectState = {
     candidateLabel: null,
     candidateSince: 0,
-    activeLabel: null,  // 최근에 표시했던 라벨
+    activeLabel: null,
     showing: false,
-    lock: false,        // 사라졌다고 판단되기 전까지 재발동 금지
+    lock: false,
     clearSince: 0
   };
 
@@ -215,16 +233,14 @@ let tmModel = null;
     detectState.lock = true;
     detectState.clearSince = 0;
 
-    showOnly(label); // 보여주기
-    // SHOW_MS 뒤에 페이드아웃(클래스 제거)
+    showOnly(label);
     setTimeout(() => {
       hideAll();
       detectState.showing = false;
-      // lock은 바로 풀지 않고, “사라짐(CLEAR)” 판정시 해제
     }, SHOW_MS);
   }
 
-  // ===== TM 추론 루프 =====
+  // ===== TM 추론 루프 (표시 회전과 무관, 기존 유지) =====
   let lastInfer = 0;
   async function maybeInfer() {
     if (!tmModel) return;
@@ -250,44 +266,36 @@ let tmModel = null;
 
     const predictions = await tmModel.predict(inferCanvas);
 
-    // --- LOCK 중엔 “사라짐”을 감시 ---
     if (detectState.lock) {
       const active = detectState.activeLabel;
       const activeProb = predictions.find(p => p.className === active)?.probability ?? 0;
       if (activeProb < LOW_CONF_TO_CLEAR) {
         if (!detectState.clearSince) detectState.clearSince = now;
         else if (now - detectState.clearSince >= CLEAR_MS) {
-          // 충분히 사라짐 → 재무장
           detectState.lock = false;
           detectState.candidateLabel = null;
           detectState.candidateSince = 0;
           detectState.clearSince = 0;
         }
       } else {
-        // 다시 높아지면 클리어 타이머 리셋
         detectState.clearSince = 0;
       }
-      return; // lock 동안 새 트리거 금지
+      return;
     }
 
-    // --- 현재 최고 라벨 찾기 ---
     let best = { className: "", probability: 0 };
     for (const p of predictions) if (p.probability > best.probability) best = p;
 
-    // --- 안정 인식(동일 라벨 90%↑가 2초 지속) ---
     if (LABELS.includes(best.className) && best.probability >= CONFIDENCE_THRESHOLD) {
       if (detectState.candidateLabel !== best.className) {
-        // 후보 라벨 변경 → 새로 측정 시작
         detectState.candidateLabel = best.className;
         detectState.candidateSince = now;
       } else {
-        // 같은 후보 라벨이 연속 유지되는 중
         if (now - detectState.candidateSince >= STABLE_MS && !detectState.showing) {
-          triggerOnce(best.className); // 1회만 표출
+          triggerOnce(best.className);
         }
       }
     } else {
-      // 임계치 미만 → 후보 초기화
       detectState.candidateLabel = null;
       detectState.candidateSince = 0;
     }
@@ -298,22 +306,25 @@ let tmModel = null;
     requestAnimationFrame(loop);
     if (video.readyState < 2) return;
 
-    pushFrame();   // 버퍼에 현재 프레임 저장
+    pushFrame();   // 버퍼에 "회전된" 현재 프레임 저장
     maybeInfer();  // (주기적으로) TM 추론
 
     const W  = canvas.width, H = canvas.height;
-    const vw = video.videoWidth  || 1920;
-    const vh = video.videoHeight || 1080;
 
-    // cover 스케일 (영상 → 캔버스)
-    const scale = Math.max(W / vw, H / vh);
-    const drawW = vw * scale, drawH = vh * scale;
+    // 최근(회전된) 프레임의 소스 크기
+    const lastIdx = (head - 1 + BUF_LEN) % BUF_LEN;
+    const srcW = buffer[lastIdx].width;   // = video.videoHeight
+    const srcH = buffer[lastIdx].height;  // = video.videoWidth
+
+    // cover 스케일 (회전된 소스 → 캔버스)
+    const scale = Math.max(W / srcW, H / srcH);
+    const drawW = srcW * scale, drawH = srcH * scale;
     const offX  = (drawW - W) / 2, offY = (drawH - H) / 2;
 
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
 
-    // 좌우 반전(거울)
+    // 좌우 반전(거울) 유지
     ctx.save();
     ctx.translate(W, 0);
     ctx.scale(-1, 1);
