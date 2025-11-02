@@ -29,9 +29,9 @@ function updateStageSize() {
    ========================= */
 const STRIP_RATIOS = [0.10, 0.20, 0.40, 0.20, 0.10];
 
-const MAX_DELAY_MS   = 1000; // 전체 지연
+const MAX_DELAY_MS   = 1000;
 const MAX_BUFFER_SEC = 5;
-const DELAY_CURVE    = 2; // 지연 곡선
+const DELAY_CURVE    = 2;
 
 const GHOST_SAMPLES = 5;
 const GHOST_SPAN    = 0.45;
@@ -75,18 +75,38 @@ function getEdgeBirthIntensity(row, N) {
 const MODEL_URL = "./tm-outfit/"; // 끝에 / 유지
 const LABELS = ["y2k", "gorp", "ballet", "grunge"];
 
-// 90% 이상이 2초 지속될 때만 표시
 const INFER_INTERVAL_MS    = 120;
 const CONFIDENCE_THRESHOLD = 0.90;
 const STABLE_MS            = 2000;
-// 오브젝트 “사라짐” 판정(락 해제용)
 const LOW_CONF_TO_CLEAR    = 0.30;
 const CLEAR_MS             = 800;
-// 표시 시간(페이드 인/아웃은 CSS transition이 처리)
 const SHOW_MS              = 1500;
 
 const INFER_SIZE = 224;
 let tmModel = null;
+
+/* =========================
+   공통: 회전+커버 드로우 헬퍼 (시계 90°)
+   - 현재 캔버스 좌표계(클립/이동/미러 포함)에서
+     소스 이미지를 화면 중심 기준으로 90° 회전하여 cover로 채움
+   ========================= */
+function drawRotatedCover(ctx, img, canvasW, canvasH) {
+  const srcW = img.width;
+  const srcH = img.height;
+
+  // 90° 회전하면 가로/세로가 바뀌므로 srcH/srcW 기준으로 스케일 계산
+  const scale = Math.max(canvasW / srcH, canvasH / srcW);
+  const drawW = srcW * scale;
+  const drawH = srcH * scale;
+
+  ctx.save();
+  // 화면 중심 기준 회전
+  ctx.translate(canvasW / 2, canvasH / 2);
+  ctx.rotate(Math.PI / 2); // 시계방향 90°
+  // 회전 좌표계에서 중앙 정렬
+  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.restore();
+}
 
 /* =========================
    메인 초기화
@@ -97,14 +117,14 @@ let tmModel = null;
   const canvas = document.getElementById('view');
   const ctx    = canvas.getContext('2d', { alpha: false });
 
-  // 16:9 스테이지 크기 계산
+  // 스테이지 사이징
   updateStageSize();
   window.addEventListener('resize', () => {
     updateStageSize();
     fitCanvasToStage();
   }, { passive: true });
 
-  // 카메라 시작 (거울 표현 위해 전면 권장)
+  // 카메라 시작
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -118,7 +138,6 @@ let tmModel = null;
     video.srcObject = stream;
     await video.play().catch(() => {});
   } catch (e) {
-    // 폴백: 기본 카메라
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       video.srcObject = stream;
@@ -129,27 +148,24 @@ let tmModel = null;
     }
   }
 
-  // TM 모델 로드 (모델 없어도 이펙트는 동작)
+  // TM 로드 (없어도 렌더는 동작)
   try {
-    tmModel = await tmImage.load(
-      MODEL_URL + "model.json",
-      MODEL_URL + "metadata.json"
-    );
+    tmModel = await tmImage.load(MODEL_URL + "model.json", MODEL_URL + "metadata.json");
   } catch (e) {
     console.error("Teachable Machine 모델 로드 실패:", e);
     alert("모델 로드 실패: /tm-outfit/ 경로와 파일들을 확인하세요.");
   }
 
-  // 추론용 오프스크린 캔버스 (좌우 반전 후 전달)
+  // 추론용 오프스크린 캔버스
   const inferCanvas = document.createElement('canvas');
   const inferCtx = inferCanvas.getContext('2d', { alpha: false });
   inferCanvas.width = INFER_SIZE;
   inferCanvas.height = INFER_SIZE;
 
-  // 캔버스 픽셀 크기(DPR) 맞추기
+  // DPR 맞춤
   function fitCanvasToStage() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const rect = canvas.getBoundingClientRect(); // 스테이지와 동일
+    const rect = canvas.getBoundingClientRect();
     const w = Math.max(1, Math.floor(rect.width  * dpr));
     const h = Math.max(1, Math.floor(rect.height * dpr));
     if (canvas.width !== w || canvas.height !== h) {
@@ -161,45 +177,29 @@ let tmModel = null;
   }
   fitCanvasToStage();
 
-  // ===== 프레임 버퍼 =====
+  // 프레임 버퍼
   const APPROX_FPS = 30;
   const BUF_LEN    = Math.ceil(MAX_BUFFER_SEC * APPROX_FPS);
-
   const buffer = new Array(BUF_LEN).fill(null).map(() => {
     const c = document.createElement('canvas');
-    // 회전 적용 후 소스 크기(폭/높이)는 영상의 세로/가로와 동일
-    c.width  = 1080; // 초기값(회전 후 폭)
-    c.height = 1920; // 초기값(회전 후 높이)
+    c.width = 1920; c.height = 1080; // 원본 비디오 크기 기준(회전은 그릴 때 수행)
     return c;
   });
   const bctx = buffer.map(c => c.getContext('2d', { alpha: false }));
   let head = 0, framesFilled = 0;
 
-  // 🔄 카메라 프레임을 버퍼에 적재할 때 "시계 방향 90° 회전" 적용
+  // 버퍼 적재(회전 없이 원본 저장) — 회전은 draw 시 일괄 적용
   function pushFrame() {
-    const vw = video.videoWidth  || 1920; // 원본 영상 폭
-    const vh = video.videoHeight || 1080; // 원본 영상 높이
-
-    const rotW = vh; // 회전 후 폭
-    const rotH = vw; // 회전 후 높이
-
+    const vw = video.videoWidth  || 1920;
+    const vh = video.videoHeight || 1080;
     const c = buffer[head], b = bctx[head];
-    if (c.width !== rotW || c.height !== rotH) { c.width = rotW; c.height = rotH; }
-
-    b.save();
-    b.clearRect(0, 0, rotW, rotH);
-    // 캔버스 좌표계를 회전: (rotW, 0)로 평행이동 이후 90° 회전
-    b.translate(rotW, 0);
-    b.rotate(Math.PI / 2);
-    // 회전된 좌표계에서 원본 영상을 그대로 그리면 결과가 시계 방향 90°
+    if (c.width !== vw || c.height !== vh) { c.width = vw; c.height = vh; }
     b.drawImage(video, 0, 0, vw, vh);
-    b.restore();
-
     head = (head + 1) % BUF_LEN;
     if (framesFilled < BUF_LEN) framesFilled++;
   }
 
-  // ===== 감지 배지 표시 (겹침 방지: 한 번에 하나만) =====
+  // 배지 표시
   const badgeEls = {
     y2k:    document.getElementById('badge-y2k'),
     gorp:   document.getElementById('badge-gorp'),
@@ -217,7 +217,7 @@ let tmModel = null;
     Object.values(badgeEls).forEach(el => el && el.classList.remove('show'));
   }
 
-  // ===== 안정 인식 + 1회 표시 + lock 상태 머신 =====
+  // 안정 인식 상태
   const detectState = {
     candidateLabel: null,
     candidateSince: 0,
@@ -240,7 +240,7 @@ let tmModel = null;
     }, SHOW_MS);
   }
 
-  // ===== TM 추론 루프 (표시 회전과 무관, 기존 유지) =====
+  // TM 추론
   let lastInfer = 0;
   async function maybeInfer() {
     if (!tmModel) return;
@@ -252,7 +252,7 @@ let tmModel = null;
     const vh = video.videoHeight || 0;
     if (!vw || !vh) return;
 
-    // cover로 중앙 영역을 INFER_SIZE로 취하고 좌우 반전(거울 일관성)
+    // 중앙 crop + 미러
     const scale = Math.max(INFER_SIZE / vw, INFER_SIZE / vh);
     const dw = vw * scale, dh = vh * scale;
     const offX = (dw - INFER_SIZE) / 2;
@@ -301,25 +301,15 @@ let tmModel = null;
     }
   }
 
-  // ===== 메인 렌더 루프 =====
+  // 메인 렌더 루프
   (function loop() {
     requestAnimationFrame(loop);
     if (video.readyState < 2) return;
 
-    pushFrame();   // 버퍼에 "회전된" 현재 프레임 저장
-    maybeInfer();  // (주기적으로) TM 추론
+    pushFrame();
+    maybeInfer();
 
     const W  = canvas.width, H = canvas.height;
-
-    // 최근(회전된) 프레임의 소스 크기
-    const lastIdx = (head - 1 + BUF_LEN) % BUF_LEN;
-    const srcW = buffer[lastIdx].width;   // = video.videoHeight
-    const srcH = buffer[lastIdx].height;  // = video.videoWidth
-
-    // cover 스케일 (회전된 소스 → 캔버스)
-    const scale = Math.max(W / srcW, H / srcH);
-    const drawW = srcW * scale, drawH = srcH * scale;
-    const offX  = (drawW - W) / 2, offY = (drawH - H) / 2;
 
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
@@ -332,7 +322,6 @@ let tmModel = null;
     const N = STRIP_RATIOS.length;
     const centerIdx = (N - 1) / 2;
 
-    // 행 누적 렌더
     let curY = 0;
     for (let row = 0; row < N; row++) {
       let h = Math.round(H * STRIP_RATIOS[row]);
@@ -347,10 +336,11 @@ let tmModel = null;
       const dist = Math.abs(row - centerIdx) / Math.max(1, centerIdx);
       const verticalSign = (row < centerIdx ? 1 : (row > centerIdx ? -1 : 0));
 
-      // 행별 지연(곡선 적용)
+      // 행별 지연
       const t = (N === 1) ? 0 : row / (N - 1);
       const stripMaxDelay = Math.pow(t, DELAY_CURVE) * MAX_DELAY_MS;
 
+      const APPROX_FPS = 30;
       const maxUsable  = Math.max(0, Math.min(BUF_LEN - 1, framesFilled - 1));
       const baseFrames = Math.min(maxUsable, Math.floor((stripMaxDelay / 1000) * APPROX_FPS));
       let baseIdx      = head - 1 - baseFrames; if (baseIdx < 0) baseIdx += BUF_LEN;
@@ -360,14 +350,14 @@ let tmModel = null;
       const perStripBlur = BASE_BLUR_PX + dist * EXTRA_BLUR_PX_AT_EDGE;
       ctx.filter = perStripBlur > 0 ? `blur(${perStripBlur}px)` : 'none';
 
-      // 기준 프레임
+      // 기준 프레임(회전 적용)
       ctx.save();
       ctx.globalAlpha = 1;
       ctx.beginPath(); ctx.rect(0, overlapY, W, overlapH); ctx.clip();
-      ctx.drawImage(baseSrc, -offX, -offY, drawW, drawH);
+      drawRotatedCover(ctx, baseSrc, W, H);
       ctx.restore();
 
-      // 고스트(잔상)
+      // 고스트(잔상) — 회전 적용
       const ghostSamples = GHOST_SAMPLES + Math.round(dist * EXTRA_GHOST_SAMPLES_AT_EDGE);
       const ghostAlpha0  = GHOST_ALPHA0 + dist * EXTRA_GHOST_ALPHA_AT_EDGE;
 
@@ -387,11 +377,11 @@ let tmModel = null;
         ctx.save();
         ctx.globalAlpha = a;
         ctx.beginPath(); ctx.rect(0, overlapY, W, overlapH); ctx.clip();
-        ctx.drawImage(src, -offX, -offY, drawW, drawH);
+        drawRotatedCover(ctx, src, W, H);
         ctx.restore();
       }
 
-      // 스트릭(가로 끌림)
+      // 스트릭(가로 끌림) — 기존 translate(dx,0) 유지 + 회전 드로우
       if (MOTION_STREAKS > 0 && verticalSign !== 0) {
         const maxShift = dist * MOTION_PIXELS_AT_EDGE;
         for (let m = 1; m <= MOTION_STREAKS; m++) {
@@ -404,12 +394,12 @@ let tmModel = null;
           ctx.globalAlpha = a;
           ctx.beginPath(); ctx.rect(0, overlapY, W, overlapH); ctx.clip();
           ctx.translate(dx, 0);
-          ctx.drawImage(baseSrc, -offX, -offY, drawW, drawH);
+          drawRotatedCover(ctx, baseSrc, W, H);
           ctx.restore();
         }
       }
 
-      // 에지버스(상/하에서 안쪽으로)
+      // 에지버스 — 회전 드로우
       const birthIntensity = getEdgeBirthIntensity(row, N);
       if (birthIntensity > 0) {
         const dir = verticalSign;
@@ -440,7 +430,7 @@ let tmModel = null;
           ctx.filter = blurPx > 0 ? `blur(${blurPx}px)` : 'none';
           ctx.globalAlpha = a;
           ctx.translate(0, shiftY);
-          ctx.drawImage(src, -offX, -offY, drawW, drawH);
+          drawRotatedCover(ctx, src, W, H);
           ctx.filter = prevFilter;
           ctx.restore();
         }
@@ -468,7 +458,7 @@ let tmModel = null;
       ctx.fillStyle = gR; ctx.fillRect(W - edge, 0, edge, H);
     })();
 
-    ctx.restore(); // 거울 해제
+    ctx.restore(); // 미러 해제
     ctx.globalAlpha = 1;
   })();
 })();
