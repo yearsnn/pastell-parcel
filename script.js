@@ -27,7 +27,7 @@ function updateStageSize() {
 const STRIP_RATIOS = [0.10, 0.20, 0.40, 0.20, 0.10];
 
 const MAX_DELAY_MS   = 1000; // 전체 지연 축소
-const MAX_BUFFER_SEC = 2;
+const MAX_BUFFER_SEC = 3;
 const DELAY_CURVE    = 1.6; // 지연 곡선(아래쪽에만 약간 더)
 
 const GHOST_SAMPLES = 5;
