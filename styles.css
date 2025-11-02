@@ -30,6 +30,7 @@ body {
   width: 1px;
   height: 1px;
   opacity: 0;
+  transform: rotate(90deg);
 }
 
 /* 출력 캔버스: 스테이지 꽉 채우기 (실제 픽셀은 JS에서 DPR 반영) */
