@@ -88,20 +88,18 @@ let tmModel = null;
  *************************************************/
 function drawCameraCoverRot90(ctx, src, W, H) {
   const sW = src.width, sH = src.height;
-  // +90° 회전하면 (높이,너비) 순으로 들어가므로 cover 스케일을 (H/sW, W/sH)로 비교
   const scale = Math.max(W / sH, H / sW);
   const drawW = sW * scale;
   const drawH = sH * scale;
 
   ctx.save();
-  // 화면 중심 기준으로 회전
   ctx.translate(W / 2, H / 2);
-  ctx.rotate(-Math.PI / 2);
-            // 시계 방향 90°
-  // 회전 좌표계에서 중앙 정렬
+  ctx.scale(-1, 1);        // 미러를 여기서만 적용
+  ctx.rotate(Math.PI / 2); // 시계 방향 90°
   ctx.drawImage(src, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
 }
+
 
 /*************************************************
  * 메인
