@@ -10,8 +10,6 @@ body {
   margin: 0;
   background: var(--page-bg);
   overflow: hidden;
-
-  /* 안전영역 */
   padding:
     max(env(safe-area-inset-top), 0)
     max(env(safe-area-inset-right), 0)
@@ -21,7 +19,7 @@ body {
 
 /* 스테이지: 크기/위치/transform은 JS에서 설정 */
 .stage {
-  position: fixed;    /* 뷰포트 기준 */
+  position: fixed;
   background: var(--stage-bg);
   overflow: hidden;
 }
@@ -33,10 +31,10 @@ body {
   width: 1px;
   height: 1px;
   opacity: 0;
-  /* 회전은 캔버스에서 처리 → CSS 회전 불필요 */
+  /* 회전은 캔버스에서 처리합니다. */
 }
 
-/* 출력 캔버스: 스테이지 꽉 채우기 (실제 픽셀은 JS에서 DPR 반영) */
+/* 출력 캔버스 */
 #view {
   position: absolute;
   inset: 0;
@@ -99,7 +97,7 @@ body {
   transition: opacity 700ms ease, transform 700ms ease;
   will-change: opacity, transform;
 
-  /* 세로 배치 의도 (회전 유지) */
+  /* 세로 배치 */
   transform: translateY(-50%) rotate(90deg) scale(0.985);
 }
 .badge.show {
