@@ -4,7 +4,6 @@
   --stage-bg: #000;
 }
 
-/* 배경만 지정. 크기/중앙은 JS가 담당 */
 html, body { height: 100%; }
 body {
   margin: 0;
@@ -17,24 +16,21 @@ body {
     max(env(safe-area-inset-left), 0);
 }
 
-/* 스테이지: 크기/위치/transform은 JS에서 설정 */
 .stage {
   position: fixed;
   background: var(--stage-bg);
   overflow: hidden;
 }
 
-/* 입력 비디오: 화면엔 숨김 (캔버스로 렌더) */
+/* 비디오는 화면에서 숨김(회전은 JS에서만 처리) */
 #cam {
   position: absolute;
   inset: -9999px;
   width: 1px;
   height: 1px;
   opacity: 0;
-  /* 회전은 캔버스에서 처리합니다. */
 }
 
-/* 출력 캔버스 */
 #view {
   position: absolute;
   inset: 0;
@@ -43,7 +39,7 @@ body {
   display: block;
 }
 
-/* 기존 오버레이 이미지들 */
+/* 오버레이들(회전 X) */
 #textImage {
   position: absolute;
   height: 85%;
@@ -83,7 +79,7 @@ body {
   z-index: 10;
 }
 
-/* 감지 배지: 기본 숨김, show 클래스일 때 페이드 인 */
+/* 배지 */
 .badge {
   position: absolute;
   left: 0.5%;
@@ -97,7 +93,6 @@ body {
   transition: opacity 700ms ease, transform 700ms ease;
   will-change: opacity, transform;
 
-  /* 세로 배치 */
   transform: translateY(-50%) rotate(90deg) scale(0.985);
 }
 .badge.show {
