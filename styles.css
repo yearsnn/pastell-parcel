@@ -53,7 +53,7 @@ body {
 #subtextImage1 {
   position: absolute;
   height: 45%;
-  right: 45%;
+  right: 55%;
   top: 2%;
   object-fit: contain;
   pointer-events: none;
@@ -62,7 +62,7 @@ body {
 #subtextImage2 {
   position: absolute;
   height: 45%;
-  right: 50%;
+  right: 58%;
   top: 32%;
   object-fit: contain;
   pointer-events: none;
@@ -109,6 +109,7 @@ body {
 
 /* === 배지 트레일 === */
 .badge-trail {
+  position: absolute;
   left: 10%;            /* ✅ 여기만 원하는 퍼센트로 조절 */
   top: 50%;
   width: 20%;
@@ -120,7 +121,7 @@ body {
   animation: trailFade 3000ms ease-out forwards;
 }
 
-짝 커졌다가 사라지는 애니메이션 */
+/*짝 커졌다가 사라지는 애니메이션 */
 @keyframes trailFade {
   0%   { opacity: 0; transform: translateY(-50%) rotate(90deg) scale(0.86); }
   70%  { opacity: 0.9; transform: translateY(-50%) rotate(90deg) scale(1.0); }
