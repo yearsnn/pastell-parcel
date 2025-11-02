@@ -90,7 +90,7 @@ body {
   z-index: 20;
 
   opacity: 0;
-  transition: opacity 1500ms ease, transform 1500ms ease;
+  transition: opacity 2000ms ease, transform 2000ms ease;
   will-change: opacity, transform;
 
   transform: translateY(-50%) rotate(90deg) scale(0.985);
@@ -109,8 +109,8 @@ body {
 
 /* === 배지 트레일 === */
 .badge-trail {
-  position: fixed;
-  left: 20%;
+  position: absolute;
+  left: 50%;
   top: 50%;
   width: 12%;
   object-fit: contain;
@@ -118,13 +118,13 @@ body {
   z-index: 18; /* 메인 배지(20)보다 살짝 아래 */
   opacity: 0;
   transform: translateY(-50%) rotate(90deg) scale(0.9);
-  animation: trailFade 2000ms ease-out forwards;
+  animation: trailFade 3000ms ease-out forwards;
 }
 
 /* 트레일이 살짝 커졌다가 사라지는 애니메이션 */
 @keyframes trailFade {
   0%   { opacity: 0; transform: translateY(-50%) rotate(90deg) scale(0.86); }
-  50%  { opacity: 0.9; transform: translateY(-50%) rotate(90deg) scale(1.0); }
+  70%  { opacity: 0.9; transform: translateY(-50%) rotate(90deg) scale(1.0); }
   100% { opacity: 0; transform: translateY(-50%) rotate(90deg) scale(1.12); }
 }
 
