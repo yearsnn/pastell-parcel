@@ -52,8 +52,8 @@ body {
 }
 #subtextImage1 {
   position: absolute;
-  height: 50%;
-  right: 40%;
+  height: 60%;
+  right: 50%;
   top: 2%;
   object-fit: contain;
   pointer-events: none;
@@ -61,8 +61,8 @@ body {
 }
 #subtextImage2 {
   position: absolute;
-  height: 50%;
-  right: 41.8%;
+  height: 60%;
+  right: 51.8%;
   top: 32%;
   object-fit: contain;
   pointer-events: none;
@@ -109,7 +109,7 @@ body {
 
 /* === 배지 트레일 === */
 .badge-trail {
-  left: 10%;            /* ✅ 여기만 원하는 퍼센트로 조절 */
+  left: 0%;            /* ✅ 여기만 원하는 퍼센트로 조절 */
   top: 50%;
   width: 20%;
   object-fit: contain;
