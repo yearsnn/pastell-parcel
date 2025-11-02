@@ -101,7 +101,7 @@ body {
 }
 
 .badge-layer {
-  position: absolute;  /* ✅ stage를 기준으로 꽉 채운 레이어 */
+  position: fixed;  /* ✅ stage를 기준으로 꽉 채운 레이어 */
   inset: 0;
   pointer-events: none;
   z-index: 18;         /* .badge(20)보다 아래면 그대로, 필요시 조절 */
@@ -109,8 +109,8 @@ body {
 
 /* === 배지 트레일 === */
 .badge-trail {
-  position: fixed;
-  left: 10%;
+  position: absolute;
+  left: 20%;
   top: 50%;
   width: 12%;
   object-fit: contain;
