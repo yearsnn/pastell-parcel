@@ -10,10 +10,13 @@ body {
   margin: 0;
   background: var(--page-bg);
   overflow: hidden;
-  padding: max(env(safe-area-inset-top), 0)
-           max(env(safe-area-inset-right), 0)
-           max(env(safe-area-inset-bottom), 0)
-           max(env(safe-area-inset-left), 0);
+
+  /* 안전영역 */
+  padding:
+    max(env(safe-area-inset-top), 0)
+    max(env(safe-area-inset-right), 0)
+    max(env(safe-area-inset-bottom), 0)
+    max(env(safe-area-inset-left), 0);
 }
 
 /* 스테이지: 크기/위치/transform은 JS에서 설정 */
@@ -30,7 +33,7 @@ body {
   width: 1px;
   height: 1px;
   opacity: 0;
-  transform: rotate(90deg);
+  /* 회전은 캔버스에서 처리 → CSS 회전 불필요 */
 }
 
 /* 출력 캔버스: 스테이지 꽉 채우기 (실제 픽셀은 JS에서 DPR 반영) */
@@ -83,7 +86,6 @@ body {
 }
 
 /* 감지 배지: 기본 숨김, show 클래스일 때 페이드 인 */
-
 .badge {
   position: absolute;
   left: 0.5%;
@@ -97,7 +99,7 @@ body {
   transition: opacity 700ms ease, transform 700ms ease;
   will-change: opacity, transform;
 
-  /* 🔥 중심 기준 회전·정렬 */
+  /* 세로 배치 의도 (회전 유지) */
   transform: translateY(-50%) rotate(90deg) scale(0.985);
 }
 .badge.show {
