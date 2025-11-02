@@ -81,25 +81,22 @@ const INFER_SIZE = 224;
 let tmModel = null;
 
 /*************************************************
- * ✅ 카메라 소스만 +90° 회전하여 cover로 그리는 공통 헬퍼
- *  - ctx:   현재 컨텍스트(미러/클립 적용 이후)
- *  - src:   HTMLCanvasElement(버퍼 프레임)
- *  - W, H:  최종 캔버스 크기(= canvas.width/height)
+ * ✅ 카메라 소스만 **오른쪽(시계) 90°** 회전하여 cover로 그리는 헬퍼
+ *  (미러는 적용하지 않음)
  *************************************************/
 function drawCameraCoverRot90(ctx, src, W, H) {
   const sW = src.width, sH = src.height;
+  // 90° 회전 후, 세로/가로가 바뀌므로 cover 스케일은 (W/sH, H/sW) 비교
   const scale = Math.max(W / sH, H / sW);
   const drawW = sW * scale;
   const drawH = sH * scale;
 
   ctx.save();
   ctx.translate(W / 2, H / 2);
-  ctx.scale(-1, 1);        // 미러를 여기서만 적용
-  ctx.rotate(Math.PI / 2); // 시계 방향 90°
+  ctx.rotate(Math.PI / 2); // ⬅️ 시계 방향 90°
   ctx.drawImage(src, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
 }
-
 
 /*************************************************
  * 메인
@@ -145,7 +142,7 @@ function drawCameraCoverRot90(ctx, src, W, H) {
     console.warn("TM 모델 로드 실패:", e);
   }
 
-  // 추론용 캔버스(회전하지 않음 — 감지는 기존 관성 유지)
+  // 추론용 캔버스(감지용 — 회전/미러 없음)
   const inferCanvas = document.createElement('canvas');
   const inferCtx = inferCanvas.getContext('2d', { alpha: false });
   inferCanvas.width = INFER_SIZE;
@@ -166,7 +163,7 @@ function drawCameraCoverRot90(ctx, src, W, H) {
   }
   fitCanvasToStage();
 
-  // 프레임 버퍼(원본(미회전) 저장 → 그릴 때만 회전)
+  // 프레임 버퍼(원본 저장 → 그릴 때만 90° 회전)
   const APPROX_FPS = 30;
   const BUF_LEN    = Math.ceil(MAX_BUFFER_SEC * APPROX_FPS);
   const buffer = new Array(BUF_LEN).fill(null).map(() => {
@@ -193,7 +190,6 @@ function drawCameraCoverRot90(ctx, src, W, H) {
     grunge: document.getElementById('badge-grunge')
   };
   const detectState = { candidateLabel:null, candidateSince:0, activeLabel:null, showing:false, lock:false, clearSince:0 };
-  const SHOW_MS = 1500;
   function showOnly(label){
     Object.entries(badgeEls).forEach(([k,el])=>{ if(!el) return; (k===label)?el.classList.add('show'):el.classList.remove('show'); });
   }
@@ -204,7 +200,7 @@ function drawCameraCoverRot90(ctx, src, W, H) {
     setTimeout(()=>{ hideAll(); detectState.showing = false; }, SHOW_MS);
   }
 
-  // TM 추론(원본 기준, 회전 적용 안 함)
+  // TM 추론(원본 비디오 기준 — 필요 시 여기도 미러/회전 맞출 수 있음)
   let lastInfer = 0;
   async function maybeInfer() {
     if (!tmModel) return;
@@ -216,15 +212,13 @@ function drawCameraCoverRot90(ctx, src, W, H) {
     const vh = video.videoHeight || 0;
     if (!vw || !vh) return;
 
+    // 중앙 crop (미러/회전 없음)
     const scale = Math.max(INFER_SIZE / vw, INFER_SIZE / vh);
     const dw = vw * scale, dh = vh * scale;
     const offX = (dw - INFER_SIZE) / 2;
     const offY = (dh - INFER_SIZE) / 2;
 
     inferCtx.save();
-    // 미러 일관성
-    inferCtx.translate(INFER_SIZE, 0);
-    inferCtx.scale(-1, 1);
     inferCtx.drawImage(video, -offX, -offY, dw, dh);
     inferCtx.restore();
 
@@ -267,10 +261,8 @@ function drawCameraCoverRot90(ctx, src, W, H) {
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
 
-    // 미러(좌우반전)는 기존 유지
+    // ⛔ 전역 미러 제거 (중요!)
     ctx.save();
-    ctx.translate(W, 0);
-    ctx.scale(-1, 1);
 
     const N = STRIP_RATIOS.length;
     const centerIdx = (N - 1) / 2;
@@ -303,7 +295,7 @@ function drawCameraCoverRot90(ctx, src, W, H) {
       const perStripBlur = BASE_BLUR_PX + dist * EXTRA_BLUR_PX_AT_EDGE;
       ctx.filter = perStripBlur > 0 ? `blur(${perStripBlur}px)` : 'none';
 
-      // 기준 프레임(여기서만 +90° 회전)
+      // 기준 프레임(여기서 오른쪽 90° 회전)
       ctx.save();
       ctx.beginPath(); ctx.rect(0, overlapY, W, overlapH); ctx.clip();
       drawCameraCoverRot90(ctx, baseSrc, W, H);
@@ -406,7 +398,7 @@ function drawCameraCoverRot90(ctx, src, W, H) {
       ctx.fillStyle = gR; ctx.fillRect(W - edge, 0, edge, H);
     })();
 
-    ctx.restore(); // 미러 해제
+    ctx.restore(); // (전역 미러 없음)
     ctx.globalAlpha = 1;
   })();
 })();
