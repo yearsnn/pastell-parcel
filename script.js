@@ -24,7 +24,7 @@ function updateStageSize() {
  *************************************************/
 const STRIP_RATIOS = [0.10, 0.20, 0.40, 0.20, 0.10];
 
-const MAX_DELAY_MS   = 2000;
+const MAX_DELAY_MS   = 3000;
 const MAX_BUFFER_SEC = 8;
 const DELAY_CURVE    = 3.5;
 
