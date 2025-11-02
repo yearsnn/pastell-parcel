@@ -24,12 +24,12 @@ function updateStageSize() {
  *************************************************/
 const STRIP_RATIOS = [0.10, 0.20, 0.40, 0.20, 0.10];
 
-const MAX_DELAY_MS   = 1000;
-const MAX_BUFFER_SEC = 5;
-const DELAY_CURVE    = 2;
+const MAX_DELAY_MS   = 2000;
+const MAX_BUFFER_SEC = 8;
+const DELAY_CURVE    = 3.5;
 
-const GHOST_SAMPLES = 5;
-const GHOST_SPAN    = 0.45;
+const GHOST_SAMPLES = ;7
+const GHOST_SPAN    = 0.6;
 const GHOST_ALPHA0  = 0.14;
 const GHOST_DECAY   = 0.75;
 
