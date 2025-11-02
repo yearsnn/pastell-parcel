@@ -28,7 +28,7 @@ const MAX_DELAY_MS   = 2000;
 const MAX_BUFFER_SEC = 8;
 const DELAY_CURVE    = 3.5;
 
-const GHOST_SAMPLES = ;7
+const GHOST_SAMPLES = 7;   // ← 오타 수정
 const GHOST_SPAN    = 0.6;
 const GHOST_ALPHA0  = 0.14;
 const GHOST_DECAY   = 0.75;
@@ -86,97 +86,71 @@ let tmModel = null;
  *************************************************/
 function drawCameraCoverRot90(ctx, src, W, H) {
   const sW = src.width, sH = src.height;
-  // 90° 회전 후, 세로/가로가 바뀌므로 cover 스케일은 (W/sH, H/sW) 비교
   const scale = Math.max(W / sH, H / sW);
   const drawW = sW * scale;
   const drawH = sH * scale;
 
   ctx.save();
   ctx.translate(W / 2, H / 2);
-  ctx.rotate(Math.PI / 2); // ⬅️ 시계 방향 90°
+  ctx.rotate(Math.PI / 2); // 시계 90°
   ctx.drawImage(src, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
 }
 
 /*************************************************
- * ⭐ 배지 트레일(배지이름_t.png 연달아 나타나기)
+ * ⭐ 배지 트레일(배지이름_t.png 연달아 생성) - 위치는 CSS left로만 제어
  *************************************************/
-// 트레일 파일 이름: `${label}${TRAIL_IMG_SUFFIX}` → 예) y2k_t.png
 const TRAIL_IMG_SUFFIX   = "_t.png";
-// 몇 ms 간격으로 한 장씩 생성할지
 const TRAIL_INTERVAL_MS  = 120;
-// 한 번 트리거 동안 최대 생성 개수(안전 상한)
 const TRAIL_MAX_COUNT    = Math.ceil(SHOW_MS / TRAIL_INTERVAL_MS) + 2;
 
-// label -> 실제 배지 <img> src 경로 얻기
 function getBadgeSrcByLabel(label, badgeEls) {
   const el = badgeEls[label];
-  if (!el) return null;
-  return el.getAttribute('src') || null;
+  return el ? el.getAttribute('src') : null;
 }
-
-// "xxx.png" → "xxx_t.png" (확장자 유지)
-// 확장자가 없으면 그냥 `_t.png` 추가
 function makeTrailSrcFromBase(baseSrc) {
   if (!baseSrc) return null;
   const m = baseSrc.match(/^(.*?)(\.[a-zA-Z0-9]+)$/);
-  if (m) return `${m[1]}_t${m[2]}`;
-  return `${baseSrc}_t.png`;
+  return m ? `${m[1]}_t${m[2]}` : `${baseSrc}_t.png`;
 }
 
-// 한 장의 트레일 이미지를 DOM에 추가(로드 실패 시 폴백)
+// ⛔ 가로 위치는 CSS의 left만 사용 — JS에서 translateX 금지!
 function addOneTrailImage(stage, src, label) {
   const img = new Image();
   img.className = 'badge-trail';
   img.alt = `${label} trail`;
 
-  // 에러 시 폴백(원본 배지 이미지로라도 보이게)
   img.onerror = () => {
     console.warn(`[trail] 이미지 로드 실패: ${src}`);
-    // 폴백은 main badge src (경로 동일) 사용
     const fallback = document.getElementById(`badge-${label}`)?.getAttribute('src');
-    if (fallback) {
-      img.src = fallback;
-    } else {
-      // 폴백도 없으면 포기
-      img.remove();
-    }
+    if (fallback) img.src = fallback; else img.remove();
   };
 
   img.src = src;
 
-  // 살짝 랜덤 위치 흔들림(과하지 않게)
-  const jitter = 6; // px
-  const dx = (Math.random() * 2 - 1) * jitter;
-  const dy = (Math.random() * 2 - 1) * jitter;
-  // CSS 기본 transform 뒤에 추가 translate만 더해준다
-  img.style.transform = `translateY(-50%) rotate(90deg) translate(${dx}px, ${dy}px) scale(0.9)`;
+  // 필요하면 Y만 아주 살짝 흔들고 싶을 때 아래 주석 해제
+  // const dy = (Math.random() * 2 - 1) * 4;
+  // img.style.transform = `translateY(calc(-50% + ${dy}px)) rotate(90deg) scale(0.9)`;
 
-  // 애니메이션 종료 시 DOM 제거
+  // 기본: 좌표는 CSS left, transform은 회전·정렬만
+  img.style.transform = `translateY(-50%) rotate(90deg) scale(0.9)`;
+
   img.addEventListener('animationend', () => img.remove(), { once: true });
-
   stage.appendChild(img);
 }
 
-// 배지 트레일 생성기: SHOW_MS 동안 주기적으로 label_t.png를 뿌렸다가 CSS 애니메이션 후 제거
 function spawnBadgeTrail(label, badgeEls) {
   const stage = document.querySelector('.stage');
   if (!stage) return;
 
-  // 실제 배지 src에서 트레일 src 도출 (경로 안전)
-  const baseSrc = getBadgeSrcByLabel(label, badgeEls);
-  if (!baseSrc) {
-    console.warn(`[trail] 배지 src를 찾지 못함: label=${label}`);
-    return;
-  }
+  const baseSrc  = getBadgeSrcByLabel(label, badgeEls);
+  if (!baseSrc) { console.warn(`[trail] 배지 src 없음: ${label}`); return; }
   const trailSrc = makeTrailSrcFromBase(baseSrc);
 
   const start = performance.now();
   let count = 0;
-
   const timer = setInterval(() => {
-    const now = performance.now();
-    if (now - start > SHOW_MS || count >= TRAIL_MAX_COUNT) {
+    if (performance.now() - start > SHOW_MS || count >= TRAIL_MAX_COUNT) {
       clearInterval(timer);
       return;
     }
@@ -229,7 +203,7 @@ function spawnBadgeTrail(label, badgeEls) {
     console.warn("TM 모델 로드 실패:", e);
   }
 
-  // 추론용 캔버스(감지용 — 회전/미러 없음)
+  // 추론용 캔버스(감지용)
   const inferCanvas = document.createElement('canvas');
   const inferCtx = inferCanvas.getContext('2d', { alpha: false });
   inferCanvas.width = INFER_SIZE;
@@ -285,11 +259,8 @@ function spawnBadgeTrail(label, badgeEls) {
   // ✅ 트리거 시: 배지 표시 + 트레일 시작
   function triggerOnce(label){
     detectState.activeLabel = label; detectState.showing = true; detectState.lock = true; detectState.clearSince = 0;
-
     showOnly(label);
-    // 트레일 시작 (경로 자동 파생: y2k.png → y2k_t.png)
     spawnBadgeTrail(label, badgeEls);
-
     setTimeout(()=>{ hideAll(); detectState.showing = false; }, SHOW_MS);
   }
 
@@ -305,7 +276,7 @@ function spawnBadgeTrail(label, badgeEls) {
     const vh = video.videoHeight || 0;
     if (!vw || !vh) return;
 
-    // 중앙 crop (미러/회전 없음)
+    // 중앙 crop
     const scale = Math.max(INFER_SIZE / vw, INFER_SIZE / vh);
     const dw = vw * scale, dh = vh * scale;
     const offX = (dw - INFER_SIZE) / 2;
@@ -339,7 +310,9 @@ function spawnBadgeTrail(label, badgeEls) {
       } else if (now - detectState.candidateSince >= STABLE_MS && !detectState.showing) {
         triggerOnce(best.className);
       }
-    } else { detectState.candidateLabel = null; detectState.candidateSince = 0; }
+    } else {
+      detectState.candidateLabel = null; detectState.candidateSince = 0;
+    }
   }
 
   // 메인 렌더
@@ -354,8 +327,7 @@ function spawnBadgeTrail(label, badgeEls) {
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
 
-    // ⛔ 전역 미러 없음
-    ctx.save();
+    ctx.save(); // 전역 미러 없음
 
     const N = STRIP_RATIOS.length;
     const centerIdx = (N - 1) / 2;
@@ -407,7 +379,7 @@ function spawnBadgeTrail(label, badgeEls) {
         let idx = head - 1 - df; if (idx < 0) idx += BUF_LEN;
 
         const src = buffer[idx];
-        const a   = ghostAlpha0 * Math.pow( GHOST_DECAY, s );
+        const a   = ghostAlpha0 * Math.pow(GHOST_DECAY, s);
         if (a <= 0.003) continue;
 
         ctx.save();
@@ -491,7 +463,7 @@ function spawnBadgeTrail(label, badgeEls) {
       ctx.fillStyle = gR; ctx.fillRect(W - edge, 0, edge, H);
     })();
 
-    ctx.restore(); // (전역 미러 없음)
+    ctx.restore(); // 전역 미러 없음
     ctx.globalAlpha = 1;
   })();
 })();
