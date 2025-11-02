@@ -96,7 +96,8 @@ function drawCameraCoverRot90(ctx, src, W, H) {
   ctx.save();
   // 화면 중심 기준으로 회전
   ctx.translate(W / 2, H / 2);
-  ctx.rotate(Math.PI / 2);             // 시계 방향 90°
+  ctx.rotate(-Math.PI / 2);
+            // 시계 방향 90°
   // 회전 좌표계에서 중앙 정렬
   ctx.drawImage(src, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
