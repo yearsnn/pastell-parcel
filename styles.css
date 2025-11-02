@@ -53,7 +53,7 @@ body {
 #subtextImage1 {
   position: absolute;
   height: 30%;
-  right: 40%;
+  right: 30%;
   top: 2%;
   object-fit: contain;
   pointer-events: none;
@@ -62,7 +62,7 @@ body {
 #subtextImage2 {
   position: absolute;
   height: 30%;
-  right: 41.8%;
+  right: 35%;
   top: 32%;
   object-fit: contain;
   pointer-events: none;
