@@ -109,7 +109,7 @@ body {
 
 /* === 배지 트레일 === */
 .badge-trail {
-  position: absolute;
+  position: fixed;
   left: 10%;
   top: 50%;
   width: 12%;
