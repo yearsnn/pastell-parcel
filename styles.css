@@ -87,8 +87,7 @@ body {
   left: 50%;
   top: 18%;
   transform: translateX(-50%) scale(0.985);
-  width: min(40%, 520px);
-  max-width: 80%;
+  width: 10%;
   object-fit: contain;
   pointer-events: none;
   z-index: 20;
