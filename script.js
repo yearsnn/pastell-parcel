@@ -1,6 +1,6 @@
-/* =========================
-   16:9 스테이지 사이징
-   ========================= */
+/*************************************************
+ * 16:9 스테이지 사이징
+ *************************************************/
 function updateStageSize() {
   const stage = document.querySelector('.stage');
   const aspect = 16 / 9;
@@ -9,13 +9,8 @@ function updateStageSize() {
   const winRatio = winW / winH;
 
   let width, height;
-  if (winRatio > aspect) {
-    height = winH;
-    width  = Math.round(height * aspect);
-  } else {
-    width  = winW;
-    height = Math.round(width / aspect);
-  }
+  if (winRatio > aspect) { height = winH; width = Math.round(height * aspect); }
+  else { width = winW; height = Math.round(width / aspect); }
 
   stage.style.width  = `${width}px`;
   stage.style.height = `${height}px`;
@@ -24,9 +19,9 @@ function updateStageSize() {
   stage.style.transform = 'translate(-50%, -50%)';
 }
 
-/* =========================
-   이펙트(베이스라인) 설정
-   ========================= */
+/*************************************************
+ * 이펙트(베이스라인)
+ *************************************************/
 const STRIP_RATIOS = [0.10, 0.20, 0.40, 0.20, 0.10];
 
 const MAX_DELAY_MS   = 1000;
@@ -69,10 +64,10 @@ function getEdgeBirthIntensity(row, N) {
   return 0.0;
 }
 
-/* =========================
-   Teachable Machine 설정
-   ========================= */
-const MODEL_URL = "./tm-outfit/"; // 끝에 / 유지
+/*************************************************
+ * TM 설정
+ *************************************************/
+const MODEL_URL = "./tm-outfit/";
 const LABELS = ["y2k", "gorp", "ballet", "grunge"];
 
 const INFER_INTERVAL_MS    = 120;
@@ -85,39 +80,36 @@ const SHOW_MS              = 1500;
 const INFER_SIZE = 224;
 let tmModel = null;
 
-/* =========================
-   공통: 회전+커버 드로우 헬퍼 (시계 90°)
-   - 현재 캔버스 좌표계(클립/이동/미러 포함)에서
-     소스 이미지를 화면 중심 기준으로 90° 회전하여 cover로 채움
-   ========================= */
-function drawRotatedCover(ctx, img, canvasW, canvasH) {
-  const srcW = img.width;
-  const srcH = img.height;
-
-  // 90° 회전하면 가로/세로가 바뀌므로 srcH/srcW 기준으로 스케일 계산
-  const scale = Math.max(canvasW / srcH, canvasH / srcW);
-  const drawW = srcW * scale;
-  const drawH = srcH * scale;
+/*************************************************
+ * ✅ 카메라 소스만 +90° 회전하여 cover로 그리는 공통 헬퍼
+ *  - ctx:   현재 컨텍스트(미러/클립 적용 이후)
+ *  - src:   HTMLCanvasElement(버퍼 프레임)
+ *  - W, H:  최종 캔버스 크기(= canvas.width/height)
+ *************************************************/
+function drawCameraCoverRot90(ctx, src, W, H) {
+  const sW = src.width, sH = src.height;
+  // +90° 회전하면 (높이,너비) 순으로 들어가므로 cover 스케일을 (H/sW, W/sH)로 비교
+  const scale = Math.max(W / sH, H / sW);
+  const drawW = sW * scale;
+  const drawH = sH * scale;
 
   ctx.save();
-  // 화면 중심 기준 회전
-  ctx.translate(canvasW / 2, canvasH / 2);
-  ctx.rotate(Math.PI / 2); // 시계방향 90°
+  // 화면 중심 기준으로 회전
+  ctx.translate(W / 2, H / 2);
+  ctx.rotate(Math.PI / 2);             // 시계 방향 90°
   // 회전 좌표계에서 중앙 정렬
-  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.drawImage(src, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
 }
 
-/* =========================
-   메인 초기화
-   ========================= */
+/*************************************************
+ * 메인
+ *************************************************/
 (async () => {
-  const stage  = document.querySelector('.stage');
   const video  = document.getElementById('cam');
   const canvas = document.getElementById('view');
   const ctx    = canvas.getContext('2d', { alpha: false });
 
-  // 스테이지 사이징
   updateStageSize();
   window.addEventListener('resize', () => {
     updateStageSize();
@@ -132,31 +124,29 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
         width:  { ideal: 1920, min: 1280 },
         height: { ideal: 1080, min: 720 },
         aspectRatio: 16 / 9
-      },
-      audio: false
+      }, audio: false
     });
     video.srcObject = stream;
     await video.play().catch(() => {});
-  } catch (e) {
+  } catch {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       video.srcObject = stream;
       await video.play().catch(() => {});
-    } catch (e2) {
-      alert('카메라 권한이 필요합니다. (HTTPS 또는 localhost에서 테스트하세요)');
+    } catch {
+      alert('카메라 권한이 필요합니다. (HTTPS 또는 localhost에서 테스트)');
       return;
     }
   }
 
-  // TM 로드 (없어도 렌더는 동작)
+  // TM 로드(없어도 렌더는 동작)
   try {
     tmModel = await tmImage.load(MODEL_URL + "model.json", MODEL_URL + "metadata.json");
   } catch (e) {
-    console.error("Teachable Machine 모델 로드 실패:", e);
-    alert("모델 로드 실패: /tm-outfit/ 경로와 파일들을 확인하세요.");
+    console.warn("TM 모델 로드 실패:", e);
   }
 
-  // 추론용 오프스크린 캔버스
+  // 추론용 캔버스(회전하지 않음 — 감지는 기존 관성 유지)
   const inferCanvas = document.createElement('canvas');
   const inferCtx = inferCanvas.getContext('2d', { alpha: false });
   inferCanvas.width = INFER_SIZE;
@@ -177,18 +167,15 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
   }
   fitCanvasToStage();
 
-  // 프레임 버퍼
+  // 프레임 버퍼(원본(미회전) 저장 → 그릴 때만 회전)
   const APPROX_FPS = 30;
   const BUF_LEN    = Math.ceil(MAX_BUFFER_SEC * APPROX_FPS);
   const buffer = new Array(BUF_LEN).fill(null).map(() => {
-    const c = document.createElement('canvas');
-    c.width = 1920; c.height = 1080; // 원본 비디오 크기 기준(회전은 그릴 때 수행)
-    return c;
+    const c = document.createElement('canvas'); c.width = 1920; c.height = 1080; return c;
   });
   const bctx = buffer.map(c => c.getContext('2d', { alpha: false }));
   let head = 0, framesFilled = 0;
 
-  // 버퍼 적재(회전 없이 원본 저장) — 회전은 draw 시 일괄 적용
   function pushFrame() {
     const vw = video.videoWidth  || 1920;
     const vh = video.videoHeight || 1080;
@@ -199,48 +186,26 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
     if (framesFilled < BUF_LEN) framesFilled++;
   }
 
-  // 배지 표시
+  // 배지 표시 관리
   const badgeEls = {
     y2k:    document.getElementById('badge-y2k'),
     gorp:   document.getElementById('badge-gorp'),
     ballet: document.getElementById('badge-ballet'),
     grunge: document.getElementById('badge-grunge')
   };
-  function showOnly(label) {
-    Object.entries(badgeEls).forEach(([k, el]) => {
-      if (!el) return;
-      if (k === label) el.classList.add('show');
-      else el.classList.remove('show');
-    });
+  const detectState = { candidateLabel:null, candidateSince:0, activeLabel:null, showing:false, lock:false, clearSince:0 };
+  const SHOW_MS = 1500;
+  function showOnly(label){
+    Object.entries(badgeEls).forEach(([k,el])=>{ if(!el) return; (k===label)?el.classList.add('show'):el.classList.remove('show'); });
   }
-  function hideAll() {
-    Object.values(badgeEls).forEach(el => el && el.classList.remove('show'));
-  }
-
-  // 안정 인식 상태
-  const detectState = {
-    candidateLabel: null,
-    candidateSince: 0,
-    activeLabel: null,
-    showing: false,
-    lock: false,
-    clearSince: 0
-  };
-
-  function triggerOnce(label) {
-    detectState.activeLabel = label;
-    detectState.showing = true;
-    detectState.lock = true;
-    detectState.clearSince = 0;
-
+  function hideAll(){ Object.values(badgeEls).forEach(el=>el&&el.classList.remove('show')); }
+  function triggerOnce(label){
+    detectState.activeLabel = label; detectState.showing = true; detectState.lock = true; detectState.clearSince = 0;
     showOnly(label);
-    setTimeout(() => {
-      hideAll();
-      detectState.showing = false;
-    }, SHOW_MS);
+    setTimeout(()=>{ hideAll(); detectState.showing = false; }, SHOW_MS);
   }
 
-  // TM 추론
+  // TM 추론(원본 기준, 회전 적용 안 함)
   let lastInfer = 0;
   async function maybeInfer() {
     if (!tmModel) return;
@@ -252,13 +217,13 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
     const vh = video.videoHeight || 0;
     if (!vw || !vh) return;
 
-    // 중앙 crop + 미러
     const scale = Math.max(INFER_SIZE / vw, INFER_SIZE / vh);
     const dw = vw * scale, dh = vh * scale;
     const offX = (dw - INFER_SIZE) / 2;
     const offY = (dh - INFER_SIZE) / 2;
 
     inferCtx.save();
+    // 미러 일관성
     inferCtx.translate(INFER_SIZE, 0);
     inferCtx.scale(-1, 1);
     inferCtx.drawImage(video, -offX, -offY, dw, dh);
@@ -273,48 +238,37 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
         if (!detectState.clearSince) detectState.clearSince = now;
         else if (now - detectState.clearSince >= CLEAR_MS) {
           detectState.lock = false;
-          detectState.candidateLabel = null;
-          detectState.candidateSince = 0;
-          detectState.clearSince = 0;
+          detectState.candidateLabel = null; detectState.candidateSince = 0; detectState.clearSince = 0;
         }
-      } else {
-        detectState.clearSince = 0;
-      }
+      } else detectState.clearSince = 0;
       return;
     }
 
-    let best = { className: "", probability: 0 };
+    let best = { className:"", probability:0 };
     for (const p of predictions) if (p.probability > best.probability) best = p;
 
     if (LABELS.includes(best.className) && best.probability >= CONFIDENCE_THRESHOLD) {
       if (detectState.candidateLabel !== best.className) {
-        detectState.candidateLabel = best.className;
-        detectState.candidateSince = now;
-      } else {
-        if (now - detectState.candidateSince >= STABLE_MS && !detectState.showing) {
-          triggerOnce(best.className);
-        }
+        detectState.candidateLabel = best.className; detectState.candidateSince = now;
+      } else if (now - detectState.candidateSince >= STABLE_MS && !detectState.showing) {
+        triggerOnce(best.className);
       }
-    } else {
-      detectState.candidateLabel = null;
-      detectState.candidateSince = 0;
-    }
+    } else { detectState.candidateLabel = null; detectState.candidateSince = 0; }
   }
 
-  // 메인 렌더 루프
-  (function loop() {
+  // 메인 렌더
+  (function loop(){
     requestAnimationFrame(loop);
     if (video.readyState < 2) return;
 
     pushFrame();
     maybeInfer();
 
-    const W  = canvas.width, H = canvas.height;
-
+    const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
 
-    // 좌우 반전(거울) 유지
+    // 미러(좌우반전)는 기존 유지
     ctx.save();
     ctx.translate(W, 0);
     ctx.scale(-1, 1);
@@ -322,14 +276,16 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
     const N = STRIP_RATIOS.length;
     const centerIdx = (N - 1) / 2;
 
+    const APPROX_FPS = 30;
+    const maxUsable  = Math.max(0, Math.min(BUF_LEN - 1, framesFilled - 1));
+
     let curY = 0;
     for (let row = 0; row < N; row++) {
       let h = Math.round(H * STRIP_RATIOS[row]);
       let y = curY;
-      if (row === N - 1) { h = H - curY; }
+      if (row === N - 1) h = H - curY;
       curY += h;
 
-      // 이음새 미세 겹침
       const overlapY = y - (row ? 1 : 0);
       const overlapH = h + (row && row < N - 1 ? 2 : 1);
 
@@ -340,34 +296,30 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
       const t = (N === 1) ? 0 : row / (N - 1);
       const stripMaxDelay = Math.pow(t, DELAY_CURVE) * MAX_DELAY_MS;
 
-      const APPROX_FPS = 30;
-      const maxUsable  = Math.max(0, Math.min(BUF_LEN - 1, framesFilled - 1));
       const baseFrames = Math.min(maxUsable, Math.floor((stripMaxDelay / 1000) * APPROX_FPS));
-      let baseIdx      = head - 1 - baseFrames; if (baseIdx < 0) baseIdx += BUF_LEN;
-      const baseSrc    = buffer[baseIdx];
+      let baseIdx = head - 1 - baseFrames; if (baseIdx < 0) baseIdx += BUF_LEN;
+      const baseSrc = buffer[baseIdx];
 
-      // 블러(중앙 선명, 위/아래 더 블러)
+      // 블러
       const perStripBlur = BASE_BLUR_PX + dist * EXTRA_BLUR_PX_AT_EDGE;
       ctx.filter = perStripBlur > 0 ? `blur(${perStripBlur}px)` : 'none';
 
-      // 기준 프레임(회전 적용)
+      // 기준 프레임(여기서만 +90° 회전)
       ctx.save();
-      ctx.globalAlpha = 1;
       ctx.beginPath(); ctx.rect(0, overlapY, W, overlapH); ctx.clip();
-      drawRotatedCover(ctx, baseSrc, W, H);
+      drawCameraCoverRot90(ctx, baseSrc, W, H);
       ctx.restore();
 
-      // 고스트(잔상) — 회전 적용
+      // 고스트
       const ghostSamples = GHOST_SAMPLES + Math.round(dist * EXTRA_GHOST_SAMPLES_AT_EDGE);
       const ghostAlpha0  = GHOST_ALPHA0 + dist * EXTRA_GHOST_ALPHA_AT_EDGE;
 
       for (let s = 0; s < ghostSamples; s++) {
-        const frac      = (ghostSamples === 1) ? 1 : s / (ghostSamples - 1);
-        const extraDelay= frac * stripMaxDelay * GHOST_SPAN;
-        const delayMs   = stripMaxDelay - extraDelay;
+        const frac       = (ghostSamples === 1) ? 1 : s / (ghostSamples - 1);
+        const extraDelay = frac * stripMaxDelay * GHOST_SPAN;
+        const delayMs    = stripMaxDelay - extraDelay;
 
-        const desired   = Math.floor((delayMs / 1000) * APPROX_FPS);
-        const df        = Math.min(maxUsable, desired);
+        const df = Math.min(maxUsable, Math.floor((delayMs / 1000) * APPROX_FPS));
         let idx = head - 1 - df; if (idx < 0) idx += BUF_LEN;
 
         const src = buffer[idx];
@@ -377,11 +329,11 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
         ctx.save();
         ctx.globalAlpha = a;
         ctx.beginPath(); ctx.rect(0, overlapY, W, overlapH); ctx.clip();
-        drawRotatedCover(ctx, src, W, H);
+        drawCameraCoverRot90(ctx, src, W, H);
         ctx.restore();
       }
 
-      // 스트릭(가로 끌림) — 기존 translate(dx,0) 유지 + 회전 드로우
+      // 스트릭
       if (MOTION_STREAKS > 0 && verticalSign !== 0) {
         const maxShift = dist * MOTION_PIXELS_AT_EDGE;
         for (let m = 1; m <= MOTION_STREAKS; m++) {
@@ -394,15 +346,15 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
           ctx.globalAlpha = a;
           ctx.beginPath(); ctx.rect(0, overlapY, W, overlapH); ctx.clip();
           ctx.translate(dx, 0);
-          drawRotatedCover(ctx, baseSrc, W, H);
+          drawCameraCoverRot90(ctx, baseSrc, W, H);
           ctx.restore();
         }
       }
 
-      // 에지버스 — 회전 드로우
+      // 에지버스
       const birthIntensity = getEdgeBirthIntensity(row, N);
       if (birthIntensity > 0) {
-        const dir = verticalSign;
+        const dir = (row < centerIdx ? 1 : (row > centerIdx ? -1 : 0));
         const prevComp = ctx.globalCompositeOperation;
         ctx.globalCompositeOperation = EDGE_BIRTH_COMPOSITE;
 
@@ -426,19 +378,16 @@ function drawRotatedCover(ctx, img, canvasW, canvasH) {
           ctx.save();
           ctx.beginPath(); ctx.rect(0, overlapY, W, overlapH); ctx.clip();
           const prevFilter = ctx.filter;
-          const blurPx = (perStripBlur + extraBlur);
-          ctx.filter = blurPx > 0 ? `blur(${blurPx}px)` : 'none';
+          ctx.filter = (perStripBlur + extraBlur) > 0 ? `blur(${perStripBlur + extraBlur}px)` : 'none';
           ctx.globalAlpha = a;
           ctx.translate(0, shiftY);
-          drawRotatedCover(ctx, src, W, H);
+          drawCameraCoverRot90(ctx, src, W, H);
           ctx.filter = prevFilter;
           ctx.restore();
         }
-
         ctx.globalCompositeOperation = prevComp;
       }
 
-      // 행별 필터 초기화
       ctx.filter = 'none';
     }
 
