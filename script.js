@@ -99,6 +99,52 @@ function drawCameraCoverRot90(ctx, src, W, H) {
 }
 
 /*************************************************
+ * ⭐ 배지 트레일(배지이름_t.png 연달아 나타나기) 설정/유틸
+ *************************************************/
+// 트레일 파일 이름: `${label}${TRAIL_IMG_SUFFIX}` → 예) y2k_t.png
+const TRAIL_IMG_SUFFIX   = "_t.png";
+// 몇 ms 간격으로 한 장씩 생성할지
+const TRAIL_INTERVAL_MS  = 120;
+// 한 번 트리거 동안 최대 생성 개수(안전 상한)
+const TRAIL_MAX_COUNT    = Math.ceil(SHOW_MS / TRAIL_INTERVAL_MS) + 2;
+
+// 배지 트레일 생성기: SHOW_MS 동안 주기적으로 label_t.png를 뿌렸다가 CSS 애니메이션 후 제거
+function spawnBadgeTrail(label) {
+  const stage = document.querySelector('.stage');
+  if (!stage) return;
+
+  const src = `${label}${TRAIL_IMG_SUFFIX}`;
+  const start = performance.now();
+  let count = 0;
+
+  const timer = setInterval(() => {
+    const now = performance.now();
+    if (now - start > SHOW_MS || count >= TRAIL_MAX_COUNT) {
+      clearInterval(timer);
+      return;
+    }
+
+    const img = new Image();
+    img.className = 'badge-trail';
+    img.src = src;
+    img.alt = `${label} trail`;
+
+    // 살짝 랜덤 위치 흔들림(과하지 않게)
+    const jitter = 6; // px
+    const dx = (Math.random() * 2 - 1) * jitter;
+    const dy = (Math.random() * 2 - 1) * jitter;
+    // CSS 기본 transform 뒤에 추가 translate만 더해준다
+    img.style.transform = `translateY(-50%) rotate(90deg) translate(${dx}px, ${dy}px) scale(0.9)`;
+
+    // 애니메이션 종료 시 DOM 제거
+    img.addEventListener('animationend', () => img.remove(), { once: true });
+
+    stage.appendChild(img);
+    count++;
+  }, TRAIL_INTERVAL_MS);
+}
+
+/*************************************************
  * 메인
  *************************************************/
 (async () => {
@@ -194,9 +240,15 @@ function drawCameraCoverRot90(ctx, src, W, H) {
     Object.entries(badgeEls).forEach(([k,el])=>{ if(!el) return; (k===label)?el.classList.add('show'):el.classList.remove('show'); });
   }
   function hideAll(){ Object.values(badgeEls).forEach(el=>el&&el.classList.remove('show')); }
+
+  // ✅ 트리거 시: 배지 표시 + 트레일 시작
   function triggerOnce(label){
     detectState.activeLabel = label; detectState.showing = true; detectState.lock = true; detectState.clearSince = 0;
+
     showOnly(label);
+    // 트레일 시작 (y2k → y2k_t.png ...)
+    spawnBadgeTrail(label);
+
     setTimeout(()=>{ hideAll(); detectState.showing = false; }, SHOW_MS);
   }
 
@@ -261,7 +313,7 @@ function drawCameraCoverRot90(ctx, src, W, H) {
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
 
-    // ⛔ 전역 미러 제거 (중요!)
+    // ⛔ 전역 미러 없음
     ctx.save();
 
     const N = STRIP_RATIOS.length;
@@ -314,7 +366,7 @@ function drawCameraCoverRot90(ctx, src, W, H) {
         let idx = head - 1 - df; if (idx < 0) idx += BUF_LEN;
 
         const src = buffer[idx];
-        const a   = ghostAlpha0 * Math.pow(GHOST_DECAY, s);
+        const a   = ghostAlpha0 * Math.pow( GHOST_DECAY, s );
         if (a <= 0.003) continue;
 
         ctx.save();
