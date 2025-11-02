@@ -53,7 +53,7 @@ body {
 #subtextImage1 {
   position: absolute;
   height: 45%;
-  right: 40%;
+  right: 35%;
   top: 2%;
   object-fit: contain;
   pointer-events: none;
