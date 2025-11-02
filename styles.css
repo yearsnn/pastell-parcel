@@ -84,13 +84,14 @@ body {
 /* 감지 배지: 기본 숨김, show 클래스일 때 페이드 인 */
 .badge {
   position: absolute;
-  left: 50%;
-  top: 18%;
-  transform: translateX(-50%) scale(0.985);
-  width: 10%;
+  left: 0.5%;
+  top: 50%;
+  transform: translateY(-50%) scale(0.985);
+  width: 20%;
   object-fit: contain;
   pointer-events: none;
   z-index: 20;
+  
 
   opacity: 0;
   transition: opacity 700ms ease, transform 700ms ease;
