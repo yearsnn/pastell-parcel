@@ -140,7 +140,8 @@ function addOneTrailImage(stage, src, label) {
 }
 
 function spawnBadgeTrail(label, badgeEls) {
-  const stage = document.querySelector('.stage');
+  // ⬇️ 기존: const stage = document.querySelector('.stage');
+  const stage = document.getElementById('badge-layer') || document.querySelector('.stage'); // ✅ 여기만 바꾸기!
   if (!stage) return;
 
   const baseSrc  = getBadgeSrcByLabel(label, badgeEls);
@@ -158,6 +159,7 @@ function spawnBadgeTrail(label, badgeEls) {
     count++;
   }, TRAIL_INTERVAL_MS);
 }
+
 
 /*************************************************
  * 메인
