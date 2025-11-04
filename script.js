@@ -35,7 +35,7 @@ const GHOST_DECAY   = 0.75;
 
 const BASE_BLUR_PX = 0.8;
 
-const VIGNETTE_ALPHA = 0.50;
+const VIGNETTE_ALPHA = 0.20;
 const VIGNETTE_WIDTH = 0.06;
 const VIGNETTE_RGB   = [0, 0, 0];
 
