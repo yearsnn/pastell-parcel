@@ -22,10 +22,10 @@ function updateStageSize() {
 /*************************************************
  * 이펙트(베이스라인)
  *************************************************/
-const STRIP_RATIOS = [0.10, 0.20, 0.40, 0.20, 0.10];
+const STRIP_RATIOS = [0.12, 0.22, 0.32, 0.22, 0.12];
 
 const MAX_DELAY_MS   = 3000;
-const MAX_BUFFER_SEC = 8;
+const MAX_BUFFER_SEC = 6;
 const DELAY_CURVE    = 3.5;
 
 const GHOST_SAMPLES = 7;   // ← 오타 수정
@@ -39,9 +39,9 @@ const VIGNETTE_ALPHA = 0.30;
 const VIGNETTE_WIDTH = 0.06;
 const VIGNETTE_RGB   = [0, 0, 0];
 
-const EXTRA_BLUR_PX_AT_EDGE   = 2.2;
-const EXTRA_GHOST_ALPHA_AT_EDGE   = 0.08;
-const EXTRA_GHOST_SAMPLES_AT_EDGE = 2;
+const EXTRA_BLUR_PX_AT_EDGE   = 2;
+const EXTRA_GHOST_ALPHA_AT_EDGE   = 0.05;
+const EXTRA_GHOST_SAMPLES_AT_EDGE = 1.8;
 
 const MOTION_STREAKS        = 6;
 const MOTION_PIXELS_AT_EDGE = 28;
