@@ -110,7 +110,7 @@ body {
 /* === 배지 트레일 === */
 .badge-trail {
   position: absolute;
-  left: 10%;            /* ✅ 여기만 원하는 퍼센트로 조절 */
+  left: 20%;            /* ✅ 여기만 원하는 퍼센트로 조절 */
   top: 50%;
   width: 20%;
   object-fit: contain;
