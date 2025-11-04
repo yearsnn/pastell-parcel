@@ -124,6 +124,7 @@ body {
 /*짝 커졌다가 사라지는 애니메이션 */
 @keyframes trailFade {
   0%   { opacity: 0; transform: translateY(-50%) rotate(90deg) scale(0.86); }
+  30%   { opacity: 0; transform: translateY(-50%) rotate(90deg) scale(0.86); }
   70%  { opacity: 0.9; transform: translateY(-50%) rotate(90deg) scale(1.0); }
   100% { opacity: 0; transform: translateY(-50%) rotate(90deg) scale(1.12); }
 }
