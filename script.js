@@ -30,7 +30,7 @@ const DELAY_CURVE    = 3.5;
 
 const GHOST_SAMPLES = 7;   // ← 오타 수정
 const GHOST_SPAN    = 0.6;
-const GHOST_ALPHA0  = 0.14;
+const GHOST_ALPHA0  = 0.10;
 const GHOST_DECAY   = 0.75;
 
 const BASE_BLUR_PX = 0.8;
