@@ -105,7 +105,7 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 18;
-  left: 5%;/* .badge(20)보다 아래면 그대로, 필요시 조절 */
+  left: 2%;/* .badge(20)보다 아래면 그대로, 필요시 조절 */
 }
 
 /* === 배지 트레일 === */
